@@ -264,7 +264,7 @@ resource "aws_cloudwatch_metric_alarm" "high_cpu" {
   namespace           = "AWS/EC2"
   period              = 60  # Período de evaluación (en segundos)
   statistic           = "Average"
-  threshold           = 70  # Umbral de uso de CPU (en porcentaje)
+  threshold           = 50  # Umbral de uso de CPU (en porcentaje)
   alarm_actions       = [aws_autoscaling_policy.increase_ec2.arn]
 
   dimensions = {
