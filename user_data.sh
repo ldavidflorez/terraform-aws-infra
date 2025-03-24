@@ -3,15 +3,14 @@
 # Crear variable de entorno con valor random
 export RANDOM_VALUE=$(openssl rand -hex 12)
 
-# Instalar Docker
+# Instalar Apache HTTP Server
 yum update -y
-yum install -y docker
-service docker start
-usermod -a -G docker ec2-user
-systemctl enable docker
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
 
 # Crear un archivo HTML con el valor de RANDOM_VALUE
-cat <<EOF > /tmp/index.html
+cat <<EOF > /var/www/html/index.html
 <!DOCTYPE html>
 <html>
 <head>
@@ -23,14 +22,5 @@ cat <<EOF > /tmp/index.html
 </html>
 EOF
 
-# Crear un Dockerfile personalizado para Nginx
-cat <<EOF > /tmp/Dockerfile
-FROM nginx:latest
-COPY /tmp/index.html /usr/share/nginx/html/index.html
-EOF
-
-# Construir la imagen Docker personalizada
-docker build -t custom_nginx /tmp
-
-# Ejecutar el contenedor con la imagen personalizada
-docker run -d -p 80:80 --name my_service custom_nginx
+# Reiniciar Apache para aplicar los cambios
+systemctl restart httpd

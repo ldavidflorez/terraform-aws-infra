@@ -42,19 +42,17 @@ El proyecto implementa la siguiente infraestructura en AWS:
 ### 2. **Instancia EC2 en la Subred Pública**
    - Una instancia EC2 tipo `t3.micro` en una subred pública.
    - Acceso SSH habilitado mediante un key pair proporcionado como variable.
-   - User data para instalar Docker y ejecutar un contenedor desde Docker Hub.
-   - Se crea una variable de entorno con un valor aleatorio en el user data.
+   - User data para instalar Apache Server y servir una aplicación básica.
+   - Se crea una variable de entorno con un valor aleatorio en el user data, para mostrarla en el index.html de la aplicación, y verificar el balanceo de carga.
 
 ### 3. **Auto Scaling Group (ASG) con Application Load Balancer (ALB)**
    - Un ASG que utiliza la AMI de la instancia EC2 creada en el paso 2.
    - Un ALB con listener en el puerto 80 (HTTP).
-   - Integración con AWS WAF para proteger el ALB.
-   - El ASG escala automáticamente basado en métricas de CloudWatch (tráfico de red).
+   - El ASG escala automáticamente basado en métricas de CloudWatch (porcentaje de uso del CPU).
 
 ### 4. **Base de Datos RDS en la Subred Privada**
    - Una instancia RDS elegible para el free tier (por ejemplo, MySQL).
    - La base de datos se despliega en las subredes privadas.
-   - Se crea un IAM Role para permitir que las instancias EC2 accedan a la base de datos.
 ---
 
 ## Cómo Ejecutar el Proyecto
@@ -63,7 +61,7 @@ Sigue estos pasos para desplegar la infraestructura:
 
 ### 1. **Clona el Repositorio**
    ```bash
-   git clone https://github.com/tu-usuario/terraform-aws-infra.git
+   git clone https://github.com/ldavidflorez/terraform-aws-infra.git
    cd terraform-aws-infra
    ```
 
@@ -105,31 +103,40 @@ Sigue estos pasos para desplegar la infraestructura:
 ### User Data para la Instancia EC2
 
 El archivo `user_data.sh` contiene el script que se ejecuta al iniciar la instancia EC2. Este script:
-1. Instala Docker.
+1. Instala Apache Server.
 2. Crea una variable de entorno con un valor aleatorio.
-3. Ejecuta un contenedor desde Docker Hub.
+3. Ejecuta un archivo index.html con el valor de RANDOM_VALUE (para verificar visualmente el funcionamiento del ALB).
 
 ```bash
-#!/bin/bash
 # Crear variable de entorno con valor random
 export RANDOM_VALUE=$(openssl rand -hex 12)
 
-# Instalar Docker
+# Instalar Apache HTTP Server
 yum update -y
-yum install -y docker
-service docker start
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
 
-# Ejecutar contenedor
-docker run -d -e RANDOM_VALUE=$RANDOM_VALUE --name my_service your_docker_image
+# Crear un archivo HTML con el valor de RANDOM_VALUE
+cat <<EOF > /var/www/html/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Random Value</title>
+</head>
+<body>
+    <h1>Random Value: $RANDOM_VALUE</h1>
+</body>
+</html>
+EOF
+
+# Reiniciar Apache para aplicar los cambios
+systemctl restart httpd
 ```
-
-### IAM Role para Acceso a RDS
-
-Se crea un IAM Role que permite a las instancias EC2 acceder a la base de datos RDS. El rol tiene adjunta la política `AmazonRDSFullAccess`.
 
 ### Métricas de CloudWatch
 
-Se configuran alarmas de CloudWatch para monitorear el uso de CPU y memoria de las instancias EC2. Estas alarmas pueden desencadenar acciones de escalado en el ASG.
+Se configuran alarmas de CloudWatch para monitorear el uso de CPU. Estas alarmas desencadenan acciones de escalado en el ASG.
 
 ---
 
